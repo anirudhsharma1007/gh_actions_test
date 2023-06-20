@@ -33,7 +33,8 @@ def generate_file_list_html(folder_path):
 
     html_content = "<html>\n<body>\n<ul>\n"
     for file_name in file_names:
-        file_path = os.path.join(folder_path, create_html_content(os.path.join(folder_path, file_name)))
+        # file_path = os.path.join(folder_path, create_html_content(os.path.join(folder_path, file_name)))
+        file_path = os.path.join(folder_path, create_html_content_with_h2_tag(os.path.join(folder_path, file_name)))
         html_content += f"<li><a href='{file_path}'>{file_name}</a></li>\n"
 
     html_content += "</ul>\n</body>\n</html>"
@@ -49,11 +50,41 @@ def create_html_content(file_name):
         data = read_file.read()
         html_content += data
     html_content += "\n</body>\n</html>"
+    html_content = re.sub(r"###\s*\| (.+)", r"<h1>\1</h1>", html_content)
     print(file_name.split('.')[0])
     with open(file_name.split('.')[0] + '.html','w',encoding='utf-8') as html_file:        
         html_file.write(html_content)
     return file_name.split('.')[0].split('\\')[-1] + '.html'
 
+
+
+def create_html_content_with_h2_tag(file_name):
+    html_content = "<html>\n<body>\n"
+
+    with open(file_name, 'r', encoding='utf-8') as read_file:
+        lines = read_file.readlines()
+
+    arabic_h2 = True
+    english_h3 = True
+
+    for line in lines:
+        if line.startswith("#META#"):
+            meta_line = line.lstrip("#META#").strip()
+            if arabic_h2 and re.search("[\u0600-\u06FF]", meta_line):
+                html_content += "<h2>" + meta_line + "</h2>"
+                arabic_h2 = False
+            elif english_h3 and re.search("[A-Za-z]", meta_line):
+                html_content += "<h3>" + meta_line + "</h3>"
+                english_h3 = False
+        else:
+            html_content += line
+
+    html_content += "\n</body>\n</html>"
+
+    with open(file_name.split('.')[0] + '.html', 'w', encoding='utf-8') as html_file:
+        html_file.write(html_content)
+
+    return file_name.split('.')[0].split('\\')[-1] + '.html'
 
 # Provide the folder path as an argument
 # folder_path = "/path/to/folder"
