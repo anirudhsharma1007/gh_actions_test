@@ -4,6 +4,21 @@ import re
 import arabic_reshaper
 from bidi.algorithm import get_display
 
+import pandas as pd
+
+df = pd.read_excel(os.path.join(os.getcwd(),'Kevin Bibliography.xlsx'))
+selected_columns = df[['ID', 'short_author', 'short_title']]
+my_dict = {}
+for index, row in selected_columns.iterrows():
+    key = row['ID']
+    value = str(row['short_author']) + ' ' + str(row['short_title']) 
+    my_dict[key] = value
+
+patterns = {
+    'prefix_pattern': r'V(\d+)',
+    'suffix_pattern': r'P(\d+)([A-Z])'
+}
+
 filesFolderPath = os.path.join(os.getcwd(),'data')
 
 # def escape_special_characters(string):
@@ -62,9 +77,17 @@ def create_html_content(file_name):
 
 
 def create_html_content_with_h2_tag(file_name):
-    html_content = "<html>\n<body style=\"text-align: right;\">\n"
+    html_content = "<html>\n<head>\n<style>\n"
+    html_content += "body { text-align: right; background-color: #c2bcca;}\n"
+    html_content += "h1 { color: #861; font-size: 24px; }\n"
+    html_content += "h2 { color: #97926; font-size: 18px; }\n"
+    html_content += "h3 { color: #4640c2; font-size: 16px; }\n"
+    html_content += "h4 { color: #958427; font-size: 14px; }\n"
+    html_content += "h5 { color: #1c201d; font-size: 12px; }\n"
+    html_content += "</style>\n\n"
 
     with open(file_name, 'r', encoding='utf-8') as read_file:
+    # with open("C:\\Users\\Anirudh Sharma\\Desktop\\testData.txt", 'r', encoding='utf-8') as read_file:
         lines = read_file.readlines()
 
     arabic_h2 = True
@@ -86,22 +109,44 @@ def create_html_content_with_h2_tag(file_name):
             html_content += f"<button onclick=\"alert('{comment_text}')\">Comment</button>"
         elif re.search(r"# @[A-Za-z0-9_]+_BEG_", line):
             block_name = re.search(r"# @([A-Za-z0-9_]+)_BEG_", line).group(1)
+            key = block_name[:4] 
+            remaining_tag = block_name[4:]
+
             citation_block = True
             citation_content = ''
+
+            if key in my_dict:
+                value = my_dict[key]  # Get the corresponding value from the dictionary
+
+                # Replace the prefix pattern with 'volume <number>'
+                remaining_tag = re.sub(patterns['prefix_pattern'], r' vol. \1', remaining_tag)
+
+                # Replace the suffix pattern with 'page number <number><alphabet>'
+                remaining_tag = re.sub(patterns['suffix_pattern'], r'. \1\2', remaining_tag)
+
+                citation_content += value + remaining_tag
+            else:
+                citation_content += block_name
+
             words = line.strip().split()
-            for i,word in enumerate(words):
-                bidi_word = get_display(arabic_reshaper.reshape(word))
-                citation_content += bidi_word + ' '
+            for word in words:
+                # bidi_word = get_display(arabic_reshaper.reshape(word))
+                # html_content += bidi_word + ' '
                 if re.search(r"@"+block_name+"_END_", word):
                     citation_block = False
                     html_content += f"<button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button>"
                     break
+                elif re.search(r"@"+block_name+"_BEG_", word):
+                    continue
+                else:
+                    html_content += word + ' '
         
         elif citation_block:
             words = line.strip().split()
             for word in words:
-                bidi_word = get_display(arabic_reshaper.reshape(word))
-                citation_content += bidi_word + ' '
+                # bidi_word = get_display(arabic_reshaper.reshape(word))
+                # html_content += bidi_word + ' '
+                html_content += word + ' '
                 if re.search(r"# @[A-Za-z0-9_]+_END_", word):
                     citation_block = False
                     html_content += f"<button onclick=\"displayCitation('{citation_content}');\">Citation ({block_name})</button>"
