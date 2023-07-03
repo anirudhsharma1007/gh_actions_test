@@ -2,8 +2,6 @@
 import os
 import re
 import sys
-import arabic_reshaper
-from bidi.algorithm import get_display
 
 import pandas as pd
 
