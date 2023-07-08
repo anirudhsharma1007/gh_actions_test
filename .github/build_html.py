@@ -20,7 +20,7 @@ selected_columns = df[['ID', 'short_author', 'short_title']]
 my_dict = {}
 for index, row in selected_columns.iterrows():
     key = row['ID']
-    value = str(row['short_author']) + ' ' + str(row['short_title']) 
+    value = str(row['short_author']) + ' , ' + str(row['short_title']) 
     my_dict[key] = value
 
 patterns = {
@@ -143,6 +143,8 @@ def create_html_content_with_h2_tag(file_name):
     citation_content = ''
 
     for line in lines:
+        if "#OpenITI-RKJ#" in line:
+            continue
         line = re.sub(r"PageV(\d+)P(\d+)", r"<span title='vol \1 page \2'>§</span>", line)
         if line.startswith("#META#"):
             meta_line = line.lstrip("#META#").strip()
@@ -150,7 +152,7 @@ def create_html_content_with_h2_tag(file_name):
                 html_content += "<h1>" + meta_line + "</h1>"
                 arabic_h2 = False
             elif english_h3 and re.search("[A-Za-z]", meta_line):
-                html_content += "<h2>" + meta_line + "</h2>"
+                html_content += "<h2>" + meta_line.replace("Transliterated Name:","") + "</h2>"
                 english_h3 = False
         elif line.startswith("# @COMMENT:"):
             # comment_lines = line.lstrip("# @COMMENT:").strip()
@@ -166,10 +168,10 @@ def create_html_content_with_h2_tag(file_name):
                         value = my_dict[key]  # Get the corresponding value from the dictionary
 
                         # Replace the prefix pattern with 'volume <number>'
-                        remaining_tag = re.sub(patterns['prefix_pattern'], r' vol. \1', remaining_tag)
+                        remaining_tag = re.sub(patterns['prefix_pattern'], r', vol. \1', remaining_tag)
 
                         # Replace the suffix pattern with 'page number <number><alphabet>'
-                        remaining_tag = re.sub(patterns['suffix_pattern'], r'. \1\2', remaining_tag)
+                        remaining_tag = re.sub(patterns['suffix_pattern'], r', \1\2.', remaining_tag)
 
                         comment_text += value + remaining_tag + ' '
                     else:
@@ -197,19 +199,40 @@ def create_html_content_with_h2_tag(file_name):
                 value = my_dict[key]  # Get the corresponding value from the dictionary
 
                 # Replace the prefix pattern with 'volume <number>'
-                remaining_tag = re.sub(patterns['prefix_pattern'], r' vol. \1', remaining_tag)
+                remaining_tag = re.sub(patterns['prefix_pattern'], r', vol. \1', remaining_tag)
 
                 # Replace the suffix pattern with 'page number <number><alphabet>'
-                remaining_tag = re.sub(patterns['suffix_pattern'], r'. \1\2', remaining_tag)
+                remaining_tag = re.sub(patterns['suffix_pattern'], r', \1\2.', remaining_tag)
 
                 citation_content += value + remaining_tag
             else:
                 citation_content += block_name
 
+            quranCitation = False
+            quranCitationContent = ''
             words = line.strip().split()
             for word in words:
                 # bidi_word = get_display(arabic_reshaper.reshape(word))
                 # html_content += bidi_word + ' '
+
+                if word.startswith("@QURS"):
+
+                    if "_BEG" in word:
+                        quranCitation = True
+                        continue
+                    elif "_END" in word:
+
+                        vol_no = word[5:8]
+                        col_no = word[9:12]
+                        quranCitation = False
+                        html_content += f"<span title=\"Qur\'an {vol_no}:{col_no}\"><u>{quranCitationContent}</u></span>"
+                        quranCitationContent = ''
+                        continue
+
+
+                if quranCitation:
+                    quranCitationContent += word + ' '
+                    continue
                 if word.startswith("@TR"):
                     continue
                 if re.search(r"@"+block_name+"_END_", word):
@@ -244,12 +267,81 @@ def create_html_content_with_h2_tag(file_name):
 
         elif line.startswith("### |||"):
             h6_line = line.lstrip("### |||").strip()
+            
+            match = re.search(r"\bSEE_\w+", h6_line)
+            matched_citation_content = ''
+            matchedWord = ''
+            if match:
+                matchedWord = match.group()
+                key = matchedWord[4:8] 
+                remaining_tag = matchedWord[8:]
+
+                if key in my_dict:
+                    value = my_dict[key]  # Get the corresponding value from the dictionary
+
+                    # Replace the prefix pattern with 'volume <number>'
+                    remaining_tag = re.sub(patterns['prefix_pattern'], r', vol. \1', remaining_tag)
+
+                    # Replace the suffix pattern with 'page number <number><alphabet>'
+                    remaining_tag = re.sub(patterns['suffix_pattern'], r', \1\2.', remaining_tag)
+
+                    matched_citation_content += value + remaining_tag
+                else:
+                    matched_citation_content += matchedWord
+            
+            h6_line = re.sub(r"\bSEE_\w+", r"<span title='"+matched_citation_content+"'>"+matchedWord+"</span>", h6_line)
             html_content += "<h5>" + h6_line + "</h5>"
         elif line.startswith("### ||"):
             h5_line = line.lstrip("### ||").strip()
+            match = re.search(r"\bSEE_\w+", h5_line)
+            matched_citation_content = ''
+            matchedWord = ''
+            if match:
+                matchedWord = match.group()
+                key = matchedWord[4:8] 
+                remaining_tag = matchedWord[8:]
+
+                if key in my_dict:
+                    value = my_dict[key]  # Get the corresponding value from the dictionary
+
+                    # Replace the prefix pattern with 'volume <number>'
+                    remaining_tag = re.sub(patterns['prefix_pattern'], r', vol. \1', remaining_tag)
+
+                    # Replace the suffix pattern with 'page number <number><alphabet>'
+                    remaining_tag = re.sub(patterns['suffix_pattern'], r', \1\2.', remaining_tag)
+
+                    matched_citation_content += value + remaining_tag
+                else:
+                    matched_citation_content += matchedWord
+            
+            h5_line = re.sub(r"\bSEE_\w+", "<span title='"+matched_citation_content+"'>"+matchedWord+"</span>", h5_line)
+            
             html_content += "<h4>" + h5_line + "</h4>"
         elif line.startswith("### |"):
             h4_line = line.lstrip("### |").strip()
+            match = re.search(r"\bSEE_\w+", h4_line)
+            matched_citation_content = ''
+            matchedWord = ''
+            if match:
+                matchedWord = match.group()
+                key = matchedWord[4:8] 
+                remaining_tag = matchedWord[8:]
+
+                if key in my_dict:
+                    value = my_dict[key]  # Get the corresponding value from the dictionary
+
+                    # Replace the prefix pattern with 'volume <number>'
+                    remaining_tag = re.sub(patterns['prefix_pattern'], r', vol. \1', remaining_tag)
+
+                    # Replace the suffix pattern with 'page number <number><alphabet>'
+                    remaining_tag = re.sub(patterns['suffix_pattern'], r', \1\2.', remaining_tag)
+
+                    matched_citation_content += value + remaining_tag
+                else:
+                    matched_citation_content += matchedWord
+            
+            h4_line = re.sub(r"\bSEE_\w+", "<span title='"+matched_citation_content+"'>"+matchedWord+"</span>", h4_line)
+            
             html_content += "<h3>" + h4_line + "</h3>"
         else:
             html_content += line
