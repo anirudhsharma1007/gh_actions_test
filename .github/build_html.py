@@ -85,6 +85,8 @@ def generate_file_list_html(html_folder_path, relative_paths=True):
             if True, relative paths will be used, which is 
             better for server/ GitHub Pages
     """
+    html_content = ''
+
     # create a list of all html files in the html folder:
     file_names = []
     for file_name in os.listdir(html_folder_path):
@@ -92,18 +94,36 @@ def generate_file_list_html(html_folder_path, relative_paths=True):
             if file_name.split('.')[-1] == 'html': 
                 file_names.append(file_name)
 
-    # initialize the content of the index.html file
-    html_content = "<html>\n<header>\n</header>\n<body>\n<h1>Witnesses:</h1>\n<ul>\n" 
+    examplHtmlPath = os.path.join(os.getcwd(),'ExampleHtml.html')
+    if os.path.exists(examplHtmlPath):            
+        with open(examplHtmlPath, 'r', encoding='utf-8') as read_file:
+            lines = read_file.readlines()
+            for line in lines:
+                html_content += line
+                if "<div id=\"list\" style=\"display: none;\">" in line:
+                    # create a link to each html file:
+                    html_content += "<ul>\n"
+                    for file_name in file_names:
+                        if relative_paths:
+                            html_path = "html/"+file_name
+                        else:
+                            html_path = create_html_path(file_name, html_folder_path)
+                        html_content += f"<li><a href='{html_path}' onclick='loadPage(this.href); return false;' target='_blank'>{file_name.split('.')[0]}</a></li>\n"
+                    html_content += "</ul>\n"
 
-    # create a link to each html file:
-    for file_name in file_names:
-        if relative_paths:
-            html_path = "html/"+file_name
-        else:
-            html_path = create_html_path(file_name, html_folder_path)
-        html_content += f"<li><a href='{html_path}' target='_blank'>{file_name.split('.')[0]}</a></li>\n"
+    else:
+        # initialize the content of the index.html file
+        html_content = "<html>\n<header>\n</header>\n<body>\n<h1>Witnesses:</h1>\n<ul>\n" 
 
-    html_content += "</ul>\n</body>\n</html>"
+        # create a link to each html file:
+        for file_name in file_names:
+            if relative_paths:
+                html_path = "html/"+file_name
+            else:
+                html_path = create_html_path(file_name, html_folder_path)
+            html_content += f"<li><a href='{html_path}' target='_blank'>{file_name.split('.')[0]}</a></li>\n"
+
+        html_content += "</ul>\n</body>\n</html>"
 
     root_folder = os.path.dirname(html_folder_path)
     index_fp = os.path.join(root_folder, "index.html")
