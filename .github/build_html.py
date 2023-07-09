@@ -5,6 +5,8 @@ import sys
 
 import pandas as pd
 
+tag_dict = {}
+startTagDict = False
 
 df = pd.read_excel(os.path.join(os.getcwd(),'Witness_list_sheet.xlsx'))
 selected_columns = df[['Arabic name', 'Witness ']]
@@ -39,7 +41,8 @@ def read_file_names(folder_path):
     file_names = []
     for file_name in os.listdir(folder_path):
         if os.path.isfile(os.path.join(folder_path, file_name)):
-            file_names.append(str(file_name).split('.')[0].strip())
+            # file_names.append(str(file_name).split('.')[0].strip())
+            file_names.append(str(file_name))
     return file_names
 
 # Provide the folder path as an argument
@@ -47,9 +50,10 @@ def read_file_names(folder_path):
 folder_path = filesFolderPath
 file_names = read_file_names(folder_path)
 
-# Print the file names
-for file_name in file_names:
-    print(file_name)
+# # Print the file names
+# for file_name in file_names:
+#     print(file_name.encode('utf-8', errors='ignore').decode('utf-8'))
+
 
 # def generate_file_list_html(folder_path):
 #     file_names = []
@@ -103,7 +107,7 @@ def generate_file_list_html(html_folder_path, relative_paths=True):
 
     root_folder = os.path.dirname(html_folder_path)
     index_fp = os.path.join(root_folder, "index.html")
-    with open(index_fp, "w") as html_file:
+    with open(index_fp, "w",encoding='utf-8') as html_file:
         html_file.write(html_content)
     
 
@@ -124,6 +128,7 @@ def create_html_content(file_name):
 
 
 def create_html_content_with_h2_tag(file_name):
+    startTagDict = False 
     html_content = "<html>\n<head>\n<style>\n"
     html_content += "body { text-align: right; background-color: #c2bcca;}\n"
     html_content += "h1 { color: #861; font-size: 24px; }\n"
@@ -215,6 +220,12 @@ def create_html_content_with_h2_tag(file_name):
                 # bidi_word = get_display(arabic_reshaper.reshape(word))
                 # html_content += bidi_word + ' '
 
+                if word.startswith("VAR_"):
+                    if startTagDict != True:
+                        startTagDict = True
+                        tag_dict[block_name] = ''
+                    tag_dict[word[4:]] = ''
+
                 if word.startswith("@QURS"):
 
                     if "_BEG" in word:
@@ -225,6 +236,8 @@ def create_html_content_with_h2_tag(file_name):
                         vol_no = word[5:8]
                         col_no = word[9:12]
                         quranCitation = False
+                        if block_name in tag_dict.keys():
+                            tag_dict[block_name] += f"<span title=\"Qur\'an {vol_no}:{col_no}\"><u>{quranCitationContent}</u></span>"
                         html_content += f"<span title=\"Qur\'an {vol_no}:{col_no}\"><u>{quranCitationContent}</u></span>"
                         quranCitationContent = ''
                         continue
@@ -237,6 +250,8 @@ def create_html_content_with_h2_tag(file_name):
                     continue
                 if re.search(r"@"+block_name+"_END_", word):
                     citation_block = False
+                    if block_name in tag_dict.keys():
+                        tag_dict[block_name] += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                     html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                     break
                 elif re.search(r"@"+block_name+"_BEG_", word):
@@ -245,11 +260,20 @@ def create_html_content_with_h2_tag(file_name):
                     continue
                 else:
                     if word != '#':
+                        if block_name in tag_dict.keys():
+                            tag_dict[block_name] += word + ' '
                         html_content += word + ' '
         
         elif citation_block:
+            if word.startswith("VAR_"):
+                    if startTagDict != True:
+                        startTagDict = True
+                        tag_dict[block_name] = ''
+                    tag_dict[word[4:]] = ''
             if re.search(r"@"+block_name+"_END_", word):
                     citation_block = False
+                    if block_name in tag_dict.keys():
+                        tag_dict[block_name] += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                     html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                     
             words = line.strip().split()
@@ -258,11 +282,20 @@ def create_html_content_with_h2_tag(file_name):
                 # html_content += bidi_word + ' '
                 if word.startswith("@TR"):
                     continue
+                if word.startswith("VAR_"):
+                    if startTagDict != True:
+                        startTagDict = True
+                        tag_dict[block_name] = ''
+                    tag_dict[word[4:]] = ''
                 if re.search(r"@"+block_name+"_END_", word):
                     citation_block = False
+                    if block_name in tag_dict.keys():
+                        tag_dict[block_name] += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                     html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                 else:
                     if word != '#':
+                        if block_name in tag_dict.keys():
+                            tag_dict[block_name] += word + ' '
                         html_content += word + ' '
 
         elif line.startswith("### |||"):
@@ -367,7 +400,7 @@ def convert_to_html(text_file_path):
         text_file_path (str): path to a witness text file
     """
 
-    print("converting", text_file_path)
+    # print("converting", text_file_path)
     
     # store the converted texts in a separate folder
     # (called "html", in the same parent folder as the data folder that contains the tex files)
@@ -386,10 +419,87 @@ def convert_to_html(text_file_path):
     return html_fp
 
 def create_html_path(file_name, html_folder):
-    html_fn = file_name.split('.')[0] + '.html'
+    modifiedFileName = manual_transliterate(file_name)
+    html_fn = modifiedFileName.split('.')[0] + '.html'
     html_path = os.path.join(html_folder, html_fn)
     return html_path
-     
+
+# def convert_file_name(file_name):
+#     # Remove leading/trailing whitespaces
+#     file_name = file_name.strip()
+#     # Convert special characters to closest ASCII equivalent
+#     file_name = unidecode(file_name)
+#     # Replace spaces with hyphens
+#     file_name = file_name.replace(' ', '-')
+#     file_name = file_name.replace('.', '-')
+#     return file_name
+
+def manual_transliterate(string):
+    special_characters = {
+        'ā': 'a',
+        'Á': 'A',
+        'á': 'a',
+        'Â': 'A',
+        'â': 'a',
+        'Ã': 'A',
+        'ã': 'a',
+        'Ä': 'A',
+        'ä': 'a',
+        'Å': 'A',
+        'å': 'a',
+        'Æ': 'AE',
+        'æ': 'ae',
+        'Ç': 'C',
+        'ç': 'c',
+        'È': 'E',
+        'é': 'e',
+        'É': 'E',
+        'Ê': 'E',
+        'ê': 'e',
+        'Ë': 'E',
+        'ë': 'e',
+        'Ì': 'I',
+        'í': 'i',
+        'Í': 'I',
+        'Î': 'I',
+        'î': 'i',
+        'Ï': 'I',
+        'ï': 'i',
+        'Ñ': 'N',
+        'ñ': 'n',
+        'Ò': 'O',
+        'Ó': 'O',
+        'ô': 'o',
+        'Ô': 'O',
+        'õ': 'o',
+        'Õ': 'O',
+        'Ö': 'O',
+        'ö': 'o',
+        'Ø': 'O',
+        'ø': 'o',
+        'Ù': 'U',
+        'Ú': 'U',
+        'Û': 'U',
+        'ü': 'u',
+        'Ý': 'Y',
+        'ÿ': 'y',
+        'ī': 'i',
+        'ī': 'i',
+        'ā': 'a'
+        # Add more mappings as needed
+    }
+        # Replace special characters with their ASCII counterparts
+    for char, repl in special_characters.items():
+        string = string.replace(char, repl)
+    
+    # Replace spaces with hyphens
+    string = string.replace(' ', '-')
+    string = string.replace('.', '-')
+    string = string.replace('\'', '-')
+    string = re.sub(r'-+', '-', string)
+    
+    return string
+
 def main():
     # get the file or folder path that is given as an argument in the module call
     # (see https://www.google.com/amp/s/www.geeksforgeeks.org/how-to-use-sys-argv-in-python/amp/)
