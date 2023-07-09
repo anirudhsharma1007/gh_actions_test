@@ -420,7 +420,7 @@ def convert_to_html(text_file_path):
         text_file_path (str): path to a witness text file
     """
 
-    # print("converting", text_file_path)
+    print("converting", text_file_path)
     
     # store the converted texts in a separate folder
     # (called "html", in the same parent folder as the data folder that contains the tex files)
