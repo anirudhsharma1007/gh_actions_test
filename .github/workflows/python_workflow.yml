@@ -28,7 +28,7 @@ jobs:
           cd data
           for file in *.txt; do
             echo $file
-            python ../.github/build_html.py "$file"
+            python .github/build_html.py "$file"
           done
         shell:
           bash
