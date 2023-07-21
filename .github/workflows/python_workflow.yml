@@ -12,35 +12,54 @@ jobs:
         with:
           fetch-depth: 0 # latest commit only
 
+      - name: identify changed text files in data folder
+        id: changed-text-files
+        uses: tj-actions/changed-files@v37
+        with:
+          files: data
+          files_ignore: data/*.py
+          separator: ","
+
+      - name: no text files changed?
+        if: steps.changed-text-files.outputs.any_changed == 'false'
+        run: |
+          echo "no text files changed"
+          
       - name: install python
+        if: steps.changed-text-files.outputs.any_changed == 'true'
         uses: actions/setup-python@v3
         with:
           python-version: '3.x'
-          
+
       - name: Install dependencies
+        if: steps.changed-text-files.outputs.any_changed == 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install pandas
           python -m pip install openpyxl
-
-      - name: convert all text files
+          
+      - name: convert changed text files
+        if: steps.changed-text-files.outputs.any_changed == 'true'
         run: |
-          cd data
-          for file in *.txt; do
+          IFS=$',' read -a MODIFIED_FILES_ARRAY <<< "${{ steps.changed-text-files.outputs.all_changed_files }}"
+          for file in "${MODIFIED_FILES_ARRAY[@]}"; do
             echo $file
-            python "${{ github.workspace }}/.github/build_html.py" "$file"
+            python .github/build_html.py "$file"
           done
+          unset IFS
         shell:
           bash
-          
+
       - name: commit any converted text files
+        if: steps.changed-text-files.outputs.any_changed == 'true'
         run: |
            git config --local user.email "github-actions[bot]@users.noreply.github.com"
            git config --local user.name "github-actions[bot]"
            git add -A
-           git commit -m "convert all text files to html" -a
-
+           git commit -m "convert changed text files to html" -a
+           
       - name: push any changes
+        if: steps.changed-text-files.outputs.any_changed == 'true'
         uses: ad-m/github-push-action@v0.6.0
         with:
            github_token: ${{ secrets.GITHUB_TOKEN }}
