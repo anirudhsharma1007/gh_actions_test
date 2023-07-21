@@ -5,8 +5,6 @@ import sys
 
 import pandas as pd
 
-tag_dict = {}
-startTagDict = False
 
 df = pd.read_excel(os.path.join(os.getcwd(),'Witness_list_sheet.xlsx'))
 selected_columns = df[['Arabic name', 'Witness ']]
@@ -148,7 +146,13 @@ def create_html_content(file_name):
 
 
 def create_html_content_with_h2_tag(file_name):
-    startTagDict = False 
+    
+    tag_dict = {}
+    startTagDict = False
+    keepReadingVarTags = False
+    varTagCount = 0
+    html_content_copy = " "
+
     html_content = "<html>\n<head>\n<style>\n"
     html_content += "body { text-align: right; background-color: #c2bcca;}\n"
     html_content += "h1 { color: #861; font-size: 24px; }\n"
@@ -156,6 +160,8 @@ def create_html_content_with_h2_tag(file_name):
     html_content += "h3 { color: #4640c2; font-size: 16px; }\n"
     html_content += "h4 { color: #958427; font-size: 14px; }\n"
     html_content += "h5 { color: #1c201d; font-size: 12px; }\n"
+    html_content += ".container {  display: flex; }\n"
+    html_content += ".paragraph {flex: 1; padding: 10px; }\n"
     html_content += "</style>\n\n"
 
     with open(file_name, 'r', encoding='utf-8') as read_file:
@@ -168,6 +174,16 @@ def create_html_content_with_h2_tag(file_name):
     citation_content = ''
 
     for line in lines:
+        if varTagCount > 0 and varTagCount == len(tag_dict.keys()):
+                html_content += "<div class='container'>"   
+                for key in tag_dict.keys():
+                    html_content +="<div class='paragraph'><p>"+ tag_dict[key] + "</p></div>"
+                html_content += "</div>" 
+                tag_dict = {}
+                startTagDict = False
+                keepReadingVarTags = False
+                varTagCount = 0 
+
         if "#OpenITI-RKJ#" in line:
             continue
         line = re.sub(r"PageV(\d+)P(\d+)", r"<span title='vol \1 page \2'>§</span>", line)
@@ -217,6 +233,24 @@ def create_html_content_with_h2_tag(file_name):
             key = block_name[:4] 
             remaining_tag = block_name[4:]
 
+            # if startTagDict == True and len(tag_dict.keys()) > 0 and varTagCount <= 0:
+
+            #     # if block_name not in tag_dict.keys() and len(tag_dict.keys()) > 0:
+            #     #     html_content_copy += "<table>" + "<tr>"*len(tag_dict.keys())
+            #     #     for key in tag_dict.keys():
+            #     #         html_content_copy +="<td>"+ tag_dict[key] + "</td>"
+                    
+            #     #     html_content_copy += "</table>" + "</tr>"*len(tag_dict.keys())
+
+            #     for key in tag_dict.keys():
+            #         html_content_copy +="<td>"+ tag_dict[key] + "</td>"
+
+            #     tag_dict = {}
+            #     startTagDict = False
+            #     keepReadingVarTags = False
+            #     varTagCount = 0 
+
+
             citation_block = True
             citation_content = ''
 
@@ -236,15 +270,30 @@ def create_html_content_with_h2_tag(file_name):
             quranCitation = False
             quranCitationContent = ''
             words = line.strip().split()
+
+            
+            for word in words:
+                if word.startswith("VAR_"):
+                    if startTagDict != True:
+                        startTagDict = True
+                        if block_name not in tag_dict.keys():
+                            tag_dict[block_name] = ''
+                    if word[4:] not in tag_dict.keys():
+                        tag_dict[word[4:]] = ''
+                else:
+                    break
+
             for word in words:
                 # bidi_word = get_display(arabic_reshaper.reshape(word))
                 # html_content += bidi_word + ' '
 
-                if word.startswith("VAR_"):
-                    if startTagDict != True:
-                        startTagDict = True
-                        tag_dict[block_name] = ''
-                    tag_dict[word[4:]] = ''
+                # if word.startswith("VAR_"):
+                #     if startTagDict != True:
+                #         startTagDict = True
+                #         if block_name not in tag_dict.keys():
+                #            tag_dict[block_name] = ''
+                #     if word[4:] not in tag_dict.keys():
+                #         tag_dict[word[4:]] = ''
 
                 if word.startswith("@QURS"):
 
@@ -258,7 +307,8 @@ def create_html_content_with_h2_tag(file_name):
                         quranCitation = False
                         if block_name in tag_dict.keys():
                             tag_dict[block_name] += f"<span title=\"Qur\'an {vol_no}:{col_no}\"><u>{quranCitationContent}</u></span>"
-                        html_content += f"<span title=\"Qur\'an {vol_no}:{col_no}\"><u>{quranCitationContent}</u></span>"
+                        else:
+                            html_content += f"<span title=\"Qur\'an {vol_no}:{col_no}\"><u>{quranCitationContent}</u></span>"
                         quranCitationContent = ''
                         continue
 
@@ -272,7 +322,9 @@ def create_html_content_with_h2_tag(file_name):
                     citation_block = False
                     if block_name in tag_dict.keys():
                         tag_dict[block_name] += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
-                    html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
+                        varTagCount += 1
+                    else:
+                        html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                     break
                 elif re.search(r"@"+block_name+"_BEG_", word):
                     continue
@@ -281,42 +333,69 @@ def create_html_content_with_h2_tag(file_name):
                 else:
                     if word != '#':
                         if block_name in tag_dict.keys():
-                            tag_dict[block_name] += word + ' '
-                        html_content += word + ' '
+                            if word.startswith("VAR_") != True:
+                                tag_dict[block_name] += word + ' '
+                        else:
+                            html_content += word + ' '
         
         elif citation_block:
-            if word.startswith("VAR_"):
-                    if startTagDict != True:
-                        startTagDict = True
-                        tag_dict[block_name] = ''
-                    tag_dict[word[4:]] = ''
+            # if word.startswith("VAR_"):
+            #         if startTagDict != True:
+            #             startTagDict = True
+            #             keepReadingVarTags = True
+            #             varTagCount += 1
+            #             if block_name not in tag_dict.keys():
+            #                tag_dict[block_name] = ''
+            #         if word[4:] not in tag_dict.keys():
+            #             tag_dict[word[4:]] = ''
             if re.search(r"@"+block_name+"_END_", word):
                     citation_block = False
                     if block_name in tag_dict.keys():
                         tag_dict[block_name] += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
-                    html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
+                        varTagCount += 1
+                    else:
+                        html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                     
             words = line.strip().split()
+
+            for word in words:
+                if word.startswith("VAR_"):
+                    if startTagDict != True:
+                        startTagDict = True
+                        if block_name not in tag_dict.keys():
+                            tag_dict[block_name] = ''
+                    if word[4:] not in tag_dict.keys():
+                        tag_dict[word[4:]] = ''
+                else:
+                    break
+
+
             for word in words:
                 # bidi_word = get_display(arabic_reshaper.reshape(word))
                 # html_content += bidi_word + ' '
                 if word.startswith("@TR"):
                     continue
-                if word.startswith("VAR_"):
-                    if startTagDict != True:
-                        startTagDict = True
-                        tag_dict[block_name] = ''
-                    tag_dict[word[4:]] = ''
+                # if word.startswith("VAR_"):
+                #     if startTagDict != True:
+                #         startTagDict = True
+                #         if block_name not in tag_dict.keys():
+                #            tag_dict[block_name] = ''
+                #     if word[4:] not in tag_dict.keys():
+                #         tag_dict[word[4:]] = ''
                 if re.search(r"@"+block_name+"_END_", word):
                     citation_block = False
                     if block_name in tag_dict.keys():
                         tag_dict[block_name] += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
-                    html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
+                        varTagCount += 1
+                    else:
+                        html_content += f"<br><button onclick=\"alert('{citation_content}');\">Citation ({block_name})</button><br>"
                 else:
                     if word != '#':
                         if block_name in tag_dict.keys():
-                            tag_dict[block_name] += word + ' '
-                        html_content += word + ' '
+                            if word.startswith("VAR_") != True:
+                                tag_dict[block_name] += word + ' '
+                        else:
+                                html_content += word + ' '
 
         elif line.startswith("### |||"):
             h6_line = line.lstrip("### |||").strip()
@@ -342,8 +421,8 @@ def create_html_content_with_h2_tag(file_name):
                 else:
                     matched_citation_content += matchedWord
             
-            h6_line = re.sub(r"\bSEE_\w+", r"<span title='"+matched_citation_content+"'>"+matchedWord+"</span>", h6_line)
-            html_content += "<h5>" + h6_line + "</h5>"
+            h6_line = re.sub(r"\bSEE_\w+", " ", h6_line)
+            html_content += "<h5><span title='"+matched_citation_content+"'>" + h6_line + "</span></h5>"
         elif line.startswith("### ||"):
             h5_line = line.lstrip("### ||").strip()
             match = re.search(r"\bSEE_\w+", h5_line)
@@ -367,9 +446,9 @@ def create_html_content_with_h2_tag(file_name):
                 else:
                     matched_citation_content += matchedWord
             
-            h5_line = re.sub(r"\bSEE_\w+", "<span title='"+matched_citation_content+"'>"+matchedWord+"</span>", h5_line)
+            h5_line = re.sub(r"\bSEE_\w+", " ", h5_line)
             
-            html_content += "<h4>" + h5_line + "</h4>"
+            html_content += "<h4><span title='"+matched_citation_content+"'>" + h5_line + "</span></h4>"
         elif line.startswith("### |"):
             h4_line = line.lstrip("### |").strip()
             match = re.search(r"\bSEE_\w+", h4_line)
@@ -393,9 +472,9 @@ def create_html_content_with_h2_tag(file_name):
                 else:
                     matched_citation_content += matchedWord
             
-            h4_line = re.sub(r"\bSEE_\w+", "<span title='"+matched_citation_content+"'>"+matchedWord+"</span>", h4_line)
+            h4_line = re.sub(r"\bSEE_\w+", " ", h4_line)
             
-            html_content += "<h3>" + h4_line + "</h3>"
+            html_content += "<h3><span title='"+matched_citation_content+"'>"+ h4_line + "</span></h3>"
         else:
             html_content += line
     
@@ -420,7 +499,7 @@ def convert_to_html(text_file_path):
         text_file_path (str): path to a witness text file
     """
 
-    print("converting", text_file_path)
+    # print("converting", text_file_path)
     
     # store the converted texts in a separate folder
     # (called "html", in the same parent folder as the data folder that contains the tex files)
