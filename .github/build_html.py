@@ -100,13 +100,19 @@ def generate_file_list_html(html_folder_path, relative_paths=True):
                 html_content += line
                 if "<div id=\"list\" style=\"display: none;\">" in line:
                     # create a link to each html file:
-                    html_content += "<ul>\n"
+                    html_content += "<ul style='direction: ltr;'>\n"
                     for file_name in file_names:
                         if relative_paths:
                             html_path = "html/"+file_name
                         else:
                             html_path = create_html_path(file_name, html_folder_path)
-                        html_content += f"<li><a href='{html_path}' onclick='loadPage(this.href); return false;' target='_blank'>{file_name.split('.')[0]}</a></li>\n"
+
+                        key = file_name.split('.')[0]
+                        if key in witness_dict:
+                            value = witness_dict[key]  # Get the corresponding value from the dictionary
+                        else:
+                            value = key
+                        html_content += f"<li><a href='{html_path}' onclick='loadPage(this.href); return false;' target='_blank'>{value}</a></li>\n"
                     html_content += "</ul>\n"
 
     else:
@@ -149,12 +155,12 @@ def create_html_content_with_h2_tag(file_name):
     
     tag_dict = {}
     startTagDict = False
-    keepReadingVarTags = False
+    # keepReadingVarTags = False
     varTagCount = 0
-    html_content_copy = " "
+    # html_content_copy = " "
 
     html_content = "<html>\n<head>\n<style>\n"
-    html_content += "body { text-align: right; background-color: #c2bcca;}\n"
+    html_content += ".content { text-align: right; background-color: lightgrey;}\n"
     html_content += "h1 { color: #861; font-size: 24px; }\n"
     html_content += "h2 { color: #97926; font-size: 18px; }\n"
     html_content += "h3 { color: #4640c2; font-size: 16px; }\n"
@@ -172,7 +178,7 @@ def create_html_content_with_h2_tag(file_name):
     english_h3 = True
     citation_block = False
     citation_content = ''
-
+    html_content += "<div class='content'>" 
     for line in lines:
         if varTagCount > 0 and varTagCount == len(tag_dict.keys()):
                 html_content += "<div class='container'>"   
@@ -181,7 +187,7 @@ def create_html_content_with_h2_tag(file_name):
                 html_content += "</div>" 
                 tag_dict = {}
                 startTagDict = False
-                keepReadingVarTags = False
+                # keepReadingVarTags = False
                 varTagCount = 0 
 
         if "#OpenITI-RKJ#" in line:
@@ -479,7 +485,7 @@ def create_html_content_with_h2_tag(file_name):
             html_content += line
     
     # html_content = re.sub(r"### |\s*\ (.+)", r"<h4>\1</h4>", html_content)
-    html_content += "</p>\n</body>\n</html>"
+    html_content += "<div></p>\n</body>\n</html>"
 
     # with open(file_name.split('.')[0] + '.html', 'w', encoding='utf-8') as html_file:
     #     html_file.write(html_content)
@@ -518,7 +524,10 @@ def convert_to_html(text_file_path):
     return html_fp
 
 def create_html_path(file_name, html_folder):
-    modifiedFileName = manual_transliterate(file_name)
+    if len(file_name.split('.')) == 2 and file_name.split('.')[-1] == 'txt' and len(file_name.split('.')[0]) == 5:
+        modifiedFileName = file_name.split('.')[0]
+    else:
+        modifiedFileName = manual_transliterate(file_name)
     html_fn = modifiedFileName.split('.')[0] + '.html'
     html_path = os.path.join(html_folder, html_fn)
     return html_path
