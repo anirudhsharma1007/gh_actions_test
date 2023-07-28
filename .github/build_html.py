@@ -203,6 +203,29 @@ def create_html_content_with_h2_tag(file_name):
                 english_h3 = False
         elif line.startswith("# @COMMENT:"):
             # comment_lines = line.lstrip("# @COMMENT:").strip()
+                        
+            # create the pattern to find the witness tag
+
+            pattern = r'\bW[A-Z]{4}\b'
+
+            # find all matches in python
+
+            matches = re.findall(pattern, line)
+
+            # append WIT_ to all the tags that match the pattern
+
+            for match in matches:
+                rep = 'wit_' + match
+                line = re.sub(r'\b' + match + r'\b', rep, line)
+            
+            pattern2 = r"\b(?<![@#\$])(?!SEE_)([A-Z]{4}V\d{2}P\d{3}[A-Z])\b"
+            replacement = r"#$\1"
+
+            def replace_code(match):
+                return replacement.replace(r'\1', match.group(1))
+
+            line = re.sub(pattern2, replace_code, line)
+
             comment_lines = line.replace("# @COMMENT:", "").strip()
             comment_text = ''
             words = comment_lines.strip().split()
